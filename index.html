@@ -1,250 +1,808 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주사위 확률 시뮬레이션 (큰 수의 법칙)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&display=swap');
-        body { font-family: 'Pretendard', sans-serif; }
-        .canvas-container { position: relative; height: 350px; width: 100%; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주사위 확률 실험실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16324F;          /* 글자 */
+    --ink-soft:#5a708a;     /* 흐린 글자 */
+    --paper:#FBFCFE;        /* 종이 */
+    --grid:#DCE6F2;         /* 모눈선 */
+    --line:#c3d3e6;         /* 테두리 */
+    --square:#2D7DD2;       /* 정사각형 주사위 = 파랑 */
+    --square-soft:#E4F0FB;
+    --rect:#F26419;         /* 직사각형 주사위 = 주황 */
+    --rect-soft:#FDEBDF;
+    --gold:#F6C700;         /* 이론값 1/6 강조 */
+    --good:#1EA672;
+    --danger:#e05353;
+    --shadow:0 6px 0 rgba(22,50,79,.12);
+    --radius:20px;
+  }
+  *{box-sizing:border-box;}
+  html{font-size:20px;}                 /* 기본 16px 대비 크게 */
+  body{
+    margin:0; color:var(--ink);
+    font-family:'Jua','Malgun Gothic',sans-serif;
+    background-color:var(--paper);
+    /* 모눈종이 배경 */
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:28px 28px;
+    line-height:1.5;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:24px 18px 80px;}
+  .screen{display:none; animation:pop .25s ease;}
+  .screen.active{display:block;}
+  @keyframes pop{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion:reduce){.screen,.screen.active{animation:none;}}
+
+  /* 상단 로고 */
+  .brand{display:flex; align-items:center; justify-content:center; gap:14px; margin:14px 0 6px; flex-wrap:wrap;}
+  .brand h1{font-size:2.5rem; margin:0; letter-spacing:1px;}
+  .pip-logo{display:inline-grid; grid-template-columns:repeat(3,10px); grid-template-rows:repeat(3,10px); gap:4px;
+    background:#fff; border:3px solid var(--ink); border-radius:12px; padding:9px; box-shadow:var(--shadow);}
+  .pip-logo i{width:10px; height:10px; border-radius:50%; background:transparent;}
+  .pip-logo i.on{background:var(--ink);}
+  .subtitle{text-align:center; color:var(--ink-soft); font-size:1.15rem; margin:0 0 26px;}
+
+  /* 카드 */
+  .card{background:#fff; border:3px solid var(--ink); border-radius:var(--radius);
+    padding:26px 24px; box-shadow:var(--shadow); margin-bottom:22px;}
+  .card h2{font-size:1.8rem; margin:0 0 6px;}
+  .card .hint{color:var(--ink-soft); font-size:1.05rem; margin:0 0 20px;}
+
+  label.field{display:block; font-size:1.25rem; margin:0 0 8px;}
+  select, input[type=text], input[type=password], input[type=number]{
+    width:100%; font-family:inherit; font-size:1.4rem; color:var(--ink);
+    padding:14px 16px; border:3px solid var(--line); border-radius:14px;
+    background:#fff; margin-bottom:18px; outline:none;
+  }
+  select:focus, input:focus{border-color:var(--square); box-shadow:0 0 0 4px var(--square-soft);}
+
+  .btn{font-family:inherit; cursor:pointer; border:none; border-radius:16px;
+    font-size:1.4rem; padding:16px 24px; color:#fff; background:var(--ink);
+    box-shadow:var(--shadow); transition:transform .06s;}
+  .btn:active{transform:translateY(4px); box-shadow:none;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn.block{display:block; width:100%;}
+  .btn.blue{background:var(--square);}
+  .btn.orange{background:var(--rect);}
+  .btn.green{background:var(--good);}
+  .btn.ghost{background:#fff; color:var(--ink); border:3px solid var(--ink); box-shadow:var(--shadow);}
+  .btn.sm{font-size:1.05rem; padding:9px 14px; box-shadow:0 3px 0 rgba(22,50,79,.12);}
+  .btn.danger{background:var(--danger);}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row .btn{flex:1;}
+
+  .back{background:none; border:none; color:var(--ink-soft); font-family:inherit;
+    font-size:1.1rem; cursor:pointer; padding:6px 0; margin-bottom:8px;}
+  .back:hover{color:var(--ink);}
+
+  /* 역할 선택 */
+  .roles{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .role{background:#fff; border:3px solid var(--ink); border-radius:var(--radius);
+    padding:30px 20px; text-align:center; cursor:pointer; box-shadow:var(--shadow); transition:transform .06s;}
+  .role:active{transform:translateY(4px); box-shadow:none;}
+  .role .emoji{font-size:3rem; display:block;}
+  .role .t{font-size:1.6rem; margin-top:8px;}
+  .role .d{font-size:1rem; color:var(--ink-soft);}
+  @media(max-width:560px){.roles{grid-template-columns:1fr;}}
+
+  /* 주사위 눈 입력 그리드 */
+  .dice-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:560px){.dice-grid{grid-template-columns:1fr;}}
+  .dice-cell{border:3px solid var(--line); border-radius:16px; padding:14px; display:flex; align-items:center; gap:14px;}
+  .dice-cell.sq{border-color:var(--square); background:var(--square-soft);}
+  .dice-cell.rc{border-color:var(--rect); background:var(--rect-soft);}
+  .dice-face{flex:0 0 auto; width:64px; height:64px; background:#fff; border:3px solid var(--ink);
+    border-radius:12px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+    padding:8px; gap:2px;}
+  .dice-face.wide{width:84px;}   /* 직사각형 느낌 */
+  .dice-face i{border-radius:50%; background:transparent; place-self:center; width:11px; height:11px;}
+  .dice-face i.on{background:var(--ink);}
+  .dice-cell .count{flex:1;}
+  .dice-cell .count label{font-size:1.05rem; color:var(--ink-soft); display:block; margin-bottom:2px;}
+  .dice-cell input{margin:0; font-size:1.6rem; text-align:center; padding:8px;}
+
+  .tag{display:inline-block; font-size:1rem; padding:4px 12px; border-radius:999px; color:#fff;}
+  .tag.sq{background:var(--square);} .tag.rc{background:var(--rect);}
+
+  .breadcrumb{font-size:1.05rem; color:var(--ink-soft); margin-bottom:14px;}
+  .breadcrumb b{color:var(--ink);}
+
+  /* 관리 트리 */
+  .tree-item{border:2px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px; background:#fbfdff;}
+  .tree-item .head{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .tree-item .name{font-size:1.25rem;}
+  .tree-children{margin:12px 0 4px 16px; padding-left:14px; border-left:3px dashed var(--line);}
+  .add-inline{display:flex; gap:8px; margin-top:10px;}
+  .add-inline input{margin:0; font-size:1.1rem; padding:9px 12px;}
+  .add-inline .btn{flex:0 0 auto;}
+  .empty{color:var(--ink-soft); font-size:1.05rem; padding:8px 0;}
+  .status{font-size:.95rem; padding:2px 10px; border-radius:999px; background:#eef3f9; color:var(--ink-soft);}
+  .status.done{background:#e2f6ee; color:var(--good);}
+
+  /* 결과 표 + 막대 */
+  .result-head{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+  .result-head h3{margin:0; font-size:1.5rem;}
+  .n-roll{font-size:1.05rem; color:var(--ink-soft);}
+  .bars{margin:14px 0 4px;}
+  .bar-row{display:grid; grid-template-columns:70px 1fr 150px; align-items:center; gap:10px; margin-bottom:9px;}
+  @media(max-width:560px){.bar-row{grid-template-columns:52px 1fr 120px;}}
+  .bar-face{width:44px; height:44px; background:#fff; border:2px solid var(--ink); border-radius:9px;
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); padding:6px; gap:1px;}
+  .bar-face i{border-radius:50%; width:7px; height:7px; place-self:center;}
+  .bar-face i.on{background:var(--ink);}
+  .bar-track{position:relative; height:34px; background:#eef3f9; border-radius:8px; overflow:hidden;}
+  .bar-fill{position:absolute; left:0; top:0; bottom:0; border-radius:8px; transition:width .5s ease;}
+  .bar-fill.sq{background:var(--square);} .bar-fill.rc{background:var(--rect);}
+  .bar-num{font-size:1.05rem; text-align:right; color:var(--ink);}
+  .bar-num small{color:var(--ink-soft);}
+  .ref-line{position:absolute; top:-4px; bottom:-4px; width:3px; background:var(--gold); z-index:2;}
+  .ref-caption{font-size:.95rem; color:#b48a00; margin-top:2px;}
+  .ref-caption b{background:var(--gold); color:var(--ink); padding:1px 8px; border-radius:6px;}
+
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media(max-width:760px){.compare{grid-template-columns:1fr;}}
+  .panel{border:3px solid var(--line); border-radius:16px; padding:18px 16px;}
+  .panel.sq{border-color:var(--square);}
+  .panel.rc{border-color:var(--rect);}
+
+  .insight{background:#fff8dd; border:3px solid var(--gold); border-radius:16px; padding:16px 18px; margin-top:18px; font-size:1.1rem;}
+  .insight b{color:#b48a00;}
+
+  .totals{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
+  .chip{background:#eef3f9; border-radius:999px; padding:6px 14px; font-size:1.05rem;}
+  .chip b{color:var(--ink);}
+
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(120px);
+    background:var(--ink); color:#fff; padding:14px 24px; border-radius:999px; font-size:1.15rem;
+    box-shadow:0 8px 24px rgba(0,0,0,.25); transition:transform .3s ease; z-index:50;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  .footnote{text-align:center; color:var(--ink-soft); font-size:.9rem; margin-top:30px;}
+
+  .conn{position:fixed; top:10px; right:12px; font-size:.85rem; padding:5px 12px;
+    border-radius:999px; z-index:40; background:#eef3f9; color:var(--ink-soft); box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .conn.on{background:#e2f6ee; color:var(--good);}
+  .conn.off{background:#fdeee0; color:#c47a1e;}
+
+  /* 결과 표 */
+  .twrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .rtable{width:100%; border-collapse:collapse; margin:12px 0 4px; font-size:1.15rem; min-width:520px;}
+  .rtable th, .rtable td{border:2px solid var(--ink); padding:10px 6px; text-align:center; white-space:nowrap;}
+  .rtable thead th{background:var(--square-soft); font-size:1.2rem;}
+  .rtable.rc thead th{background:var(--rect-soft);}
+  .rtable tbody th{background:#f4f8fc; text-align:center;}          /* 행 이름(1모둠 등) */
+  .rtable td.sum{background:#f4f8fc; font-weight:normal;}
+  .rtable tr.tot th, .rtable tr.tot td{background:#e7eef7;}          /* 학급 전체 */
+  .rtable tr.tot th{color:var(--ink);}
+  .rtable tr.school th, .rtable tr.school td{background:#d9e6f5;}    /* 학교 전체 */
+  .rtable .pct{display:block; font-size:.78rem; color:var(--ink-soft); font-weight:normal; margin-top:3px;}
+  .rtable tr.school .pct{color:#1a4f86; font-weight:normal;}        /* 학교 전체 확률 강조 */
+  .rtable .empty-row{color:var(--ink-soft); padding:16px;}
+</style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
+<div class="wrap">
 
-    <div class="max-w-6xl mx-auto px-4 py-8">
-        <!-- 헤더 영역 -->
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-indigo-700 mb-2">주사위 확률 시뮬레이션</h1>
-            <p class="text-slate-600 text-lg font-medium">시행 횟수가 늘어남에 따라 상대도수가 수학적 확률 $1/6$에 수렴하는 '큰 수의 법칙'을 탐구해 보세요.</p>
-        </header>
+  <div class="brand">
+    <span class="pip-logo" aria-hidden="true">
+      <i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i>
+    </span>
+    <h1>주사위 확률 실험실</h1>
+  </div>
+  <p class="subtitle">굴린 만큼 진실에 가까워진다 — 통계적 확률 탐구</p>
 
-        <!-- 상단 대시보드 (통계 및 주사위) -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
-            <!-- 주사위 및 컨트롤 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
-                <div id="dice-face" class="w-24 h-24 bg-indigo-600 rounded-2xl shadow-xl flex items-center justify-center text-white text-5xl font-bold mb-6 transition-transform duration-100 ease-out">
-                    ?
-                </div>
-                <div class="grid grid-cols-2 gap-2 w-full">
-                    <button id="roll-1" class="bg-indigo-600 text-white py-2 px-4 rounded-lg font-bold hover:bg-indigo-700 active:scale-95 transition">1회</button>
-                    <button id="roll-10" class="bg-slate-800 text-white py-2 px-4 rounded-lg font-bold hover:bg-slate-900 active:scale-95 transition">10회</button>
-                    <button id="roll-100" class="bg-slate-800 text-white py-2 px-4 rounded-lg font-bold hover:bg-slate-900 active:scale-95 transition">100회</button>
-                    <button id="roll-1000" class="bg-rose-600 text-white py-2 px-4 rounded-lg font-bold hover:bg-rose-700 active:scale-95 transition">1000회</button>
-                </div>
-                <button id="reset-btn" class="mt-4 text-slate-400 hover:text-rose-600 text-sm font-medium underline">시뮬레이션 초기화</button>
-            </div>
+  <!-- ============ 홈: 역할 선택 ============ -->
+  <section id="home" class="screen active">
+    <div class="roles">
+      <div class="role" onclick="go('s-select')">
+        <span class="emoji">🎲</span>
+        <div class="t">학생 입장</div>
+        <div class="d">우리 모둠 주사위 결과 입력하기</div>
+      </div>
+      <div class="role" onclick="go('admin-login')">
+        <span class="emoji">🧑‍🏫</span>
+        <div class="t">선생님 (관리자)</div>
+        <div class="d">모둠 만들기 · 학급/학교 결과 보기</div>
+      </div>
+    </div>
+  </section>
 
-            <!-- 통계 현황 -->
-            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-slate-800">실시간 통계 현황</h2>
-                    <div class="text-indigo-600 font-bold bg-indigo-50 px-4 py-1 rounded-full">총 시행 횟수: <span id="total-rolls">0</span>회</div>
-                </div>
-                <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
-                    <!-- 각 눈별 통계 카드 -->
-                    <template id="stat-card-template">
-                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                            <div class="text-sm font-bold text-slate-500 mb-1"><span class="face-num"></span>의 눈</div>
-                            <div class="text-xl font-bold text-slate-800 face-count">0</div>
-                            <div class="text-xs font-medium text-indigo-500 mt-1 face-ratio">0.0%</div>
-                        </div>
-                    </template>
-                    <div id="stats-container" class="contents"></div>
-                </div>
-            </div>
-        </div>
+  <!-- ============ 학생 1: 학교/학급/모둠 선택 ============ -->
+  <section id="s-select" class="screen">
+    <button class="back" onclick="go('home')">← 처음으로</button>
+    <div class="card">
+      <h2>어디 모둠인가요?</h2>
+      <p class="hint">학교 → 학급 → 우리 모둠을 골라 입장하세요.</p>
+      <label class="field" for="sel-school">학교</label>
+      <select id="sel-school" onchange="onSchoolPick()"><option value="">— 학교 선택 —</option></select>
+      <label class="field" for="sel-class">학급</label>
+      <select id="sel-class" onchange="onClassPick()" disabled><option value="">— 학급 선택 —</option></select>
+      <label class="field" for="sel-group">모둠</label>
+      <select id="sel-group" onchange="onGroupPick()" disabled><option value="">— 모둠 선택 —</option></select>
+      <button id="enter-btn" class="btn blue block" disabled onclick="enterGroup()">입장하기 →</button>
+    </div>
+  </section>
 
-        <!-- 하단 그래프 영역 -->
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <!-- 막대 그래프 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                    <span class="w-2 h-6 bg-indigo-500 rounded-full mr-2"></span>
-                    주사위 눈의 분포 (도수)
-                </h3>
-                <div class="canvas-container">
-                    <canvas id="barChart"></canvas>
-                </div>
-            </div>
+  <!-- ============ 학생 2: 정사각형 주사위 ============ -->
+  <section id="s-square" class="screen">
+    <button class="back" onclick="go('s-select')">← 모둠 다시 선택</button>
+    <div class="card">
+      <div class="breadcrumb" id="crumb-sq"></div>
+      <h2><span class="tag sq">1단계</span> 정사각형 주사위</h2>
+      <p class="hint">정육면체 주사위입니다. 1부터 6까지 <b>몇 번</b> 나왔는지 세어서 입력하세요.</p>
+      <div class="dice-grid" id="grid-square"></div>
+      <p class="totals"><span class="chip">합계 <b id="sum-square">0</b> 번</span></p>
+      <button class="btn blue block" onclick="submitSquare()">제출하기 ✓ (다음: 직육면체)</button>
+    </div>
+  </section>
 
-            <!-- 선 그래프 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                    <span class="w-2 h-6 bg-emerald-500 rounded-full mr-2"></span>
-                    상대도수의 수렴 (수학적 확률 1/6)
-                </h3>
-                <div class="canvas-container">
-                    <canvas id="lineChart"></canvas>
-                </div>
-            </div>
-        </div>
+  <!-- ============ 학생 3: 직사각형 주사위 ============ -->
+  <section id="s-rect" class="screen">
+    <button class="back" onclick="go('s-square')">← 정사각형 주사위</button>
+    <div class="card">
+      <div class="breadcrumb" id="crumb-rc"></div>
+      <h2><span class="tag rc">2단계</span> 직사각형 주사위</h2>
+      <p class="hint">직육면체 주사위입니다. 1부터 6까지 <b>몇 번</b> 나왔는지 세어서 입력하세요.</p>
+      <div class="dice-grid" id="grid-rect"></div>
+      <p class="totals"><span class="chip">합계 <b id="sum-rect">0</b> 번</span></p>
+      <button class="btn orange block" onclick="submitRect()">제출하기 ✓</button>
+    </div>
+  </section>
+
+  <!-- ============ 학생 4: 완료 ============ -->
+  <section id="s-done" class="screen">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:3.4rem;">🎉</div>
+      <h2>제출 완료!</h2>
+      <p class="hint" id="done-msg">우리 모둠 결과가 저장되었어요.</p>
+      <div class="row">
+        <button class="btn ghost" onclick="editAgain()">우리 모둠 수정</button>
+        <button class="btn green" onclick="go('home')">처음으로</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 관리자 로그인 ============ -->
+  <section id="admin-login" class="screen">
+    <button class="back" onclick="go('home')">← 처음으로</button>
+    <div class="card">
+      <h2>선생님 로그인</h2>
+      <p class="hint">관리자 비밀번호를 입력하세요.</p>
+      <input type="password" id="pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')tryLogin()">
+      <button class="btn block" onclick="tryLogin()">들어가기</button>
+      <p id="pw-msg" class="empty" style="color:var(--danger); display:none;">비밀번호가 틀렸어요.</p>
+    </div>
+  </section>
+
+  <!-- ============ 관리자 홈 ============ -->
+  <section id="admin" class="screen">
+    <button class="back" onclick="go('home')">← 로그아웃</button>
+    <div class="row" style="margin-bottom:18px;">
+      <button class="btn ghost" id="tab-manage" onclick="adminTab('manage')">🏗️ 모둠 관리</button>
+      <button class="btn ghost" id="tab-result" onclick="adminTab('result')">📊 결과 보기</button>
     </div>
 
-    <script>
-        // --- 데이터 상태 ---
-        let totalRolls = 0;
-        let faceCounts = [0, 0, 0, 0, 0, 0]; // 1~6 눈의 도수
-        let relativeFreqHistory = [[], [], [], [], [], []]; // 선그래프용 기록
-        let rollLabels = []; // X축 레이블
-        
-        const THEORETICAL_PROB = 1/6;
-        const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+    <!-- 관리 -->
+    <div id="admin-manage">
+      <div class="card">
+        <h2>학교 · 학급 · 모둠 만들기</h2>
+        <p class="hint">학교를 만들고, 그 안에 학급, 학급 안에 모둠을 추가하세요.</p>
+        <div class="add-inline">
+          <input type="text" id="new-school" placeholder="학교 이름 (예: 용문중학교)" onkeydown="if(event.key==='Enter')addSchool()">
+          <button class="btn blue" onclick="addSchool()">＋ 학교</button>
+        </div>
+        <div id="tree" style="margin-top:18px;"></div>
+      </div>
+    </div>
 
-        // --- DOM 요소 ---
-        const totalRollsEl = document.getElementById('total-rolls');
-        const diceFaceEl = document.getElementById('dice-face');
-        const statsContainer = document.getElementById('stats-container');
-        const statCardTemplate = document.getElementById('stat-card-template');
+    <!-- 결과 -->
+    <div id="admin-result" style="display:none;">
+      <div class="card">
+        <h2>결과 확인</h2>
+        <p class="hint">학교와 학급을 고르면, 모둠별 → 학급 전체 → 학교 전체 순서로 표에 한번에 보여줍니다.</p>
+        <label class="field" for="res-school">학교</label>
+        <select id="res-school" onchange="renderResult()"><option value="">— 학교 선택 —</option></select>
+        <label class="field" for="res-scope">학급</label>
+        <select id="res-scope" onchange="renderResult()" disabled><option value="">— 학급 선택 —</option></select>
+      </div>
+      <div id="result-view"></div>
+    </div>
+  </section>
 
-        // 초기 통계 카드 생성
-        for (let i = 1; i <= 6; i++) {
-            const clone = statCardTemplate.content.cloneNode(true);
-            clone.querySelector('.face-num').textContent = i;
-            clone.querySelector('.face-count').id = `count-${i}`;
-            clone.querySelector('.face-ratio').id = `ratio-${i}`;
-            statsContainer.appendChild(clone);
-        }
+  <p class="footnote">단일 HTML · GitHub Pages 배포 · Firebase Realtime Database 실시간 연동 (모든 기기에서 함께 집계)</p>
+</div>
 
-        // --- 차트 설정 ---
-        const barCtx = document.getElementById('barChart').getContext('2d');
-        const barChart = new Chart(barCtx, {
-            type: 'bar',
-            data: {
-                labels: ['1', '2', '3', '4', '5', '6'],
-                datasets: [{
-                    label: '나온 횟수',
-                    data: faceCounts,
-                    backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, grid: { display: false } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+<div class="toast" id="toast"></div>
+<div class="conn off" id="conn">○ 연결 중…</div>
 
-        const lineCtx = document.getElementById('lineChart').getContext('2d');
-        const lineChart = new Chart(lineCtx, {
-            type: 'line',
-            data: {
-                labels: rollLabels,
-                datasets: [
-                    ...[1, 2, 3, 4, 5, 6].map((num, i) => ({
-                        label: `${num}의 눈`,
-                        data: relativeFreqHistory[i],
-                        borderColor: colors[i],
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        tension: 0.2
-                    })),
-                    {
-                        label: '수학적 확률 (1/6)',
-                        data: [],
-                        borderColor: '#64748b',
-                        borderDash: [5, 5],
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        order: -1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    y: { 
-                        min: 0, 
-                        max: 0.4, 
-                        ticks: { stepSize: 0.05 },
-                        title: { display: true, text: '상대도수' }
-                    },
-                    x: { title: { display: true, text: '시행 횟수' } }
-                },
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }
-                }
-            }
-        });
+<!-- Firebase (compat 빌드: 전역 firebase 사용 → 단일 HTML 인라인 핸들러와 호환) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 
-        // --- 기능 함수 ---
-        function roll(times) {
-            let lastFace = 0;
-            for (let i = 0; i < times; i++) {
-                const face = Math.floor(Math.random() * 6) + 1;
-                faceCounts[face - 1]++;
-                totalRolls++;
-                lastFace = face;
+<script>
+/* =========================================================================
+   데이터 저장 계층 — Firebase Realtime Database
+   ------------------------------------------------------------------------
+   데이터 구조 (경로):
+   schools/<schoolId> = { name }
+   schools/<schoolId>/classes/<classId> = { name }
+   schools/<schoolId>/classes/<classId>/groups/<groupId> = {
+        name, square:[0..6], rect:[0..6], done }
+        // square / rect = 1~6 눈이 나온 횟수
 
-                // 데이터가 너무 많으면 브라우저가 느려지므로 샘플링 (X축 간격 조정)
-                let sampleRate = 1;
-                if (totalRolls > 100) sampleRate = 5;
-                if (totalRolls > 500) sampleRate = 20;
-                if (totalRolls > 2000) sampleRate = 100;
+   · schools 전체를 실시간 구독 → 어느 기기에서 바뀌든 자동 반영
+   · 학생 제출은 '해당 모둠 경로'에만 update → 동시 제출해도 서로 안 덮어씀
+========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBv-HzgNVE6ySKdaybzKkDbdh6sbpgsD00",
+  authDomain: "gen-lang-client-0616737975.firebaseapp.com",
+  databaseURL: "https://gen-lang-client-0616737975-default-rtdb.firebaseio.com",
+  projectId: "gen-lang-client-0616737975",
+  storageBucket: "gen-lang-client-0616737975.firebasestorage.app",
+  messagingSenderId: "367307809608",
+  appId: "1:367307809608:web:83deef8ea859629e11c97d"
+};
 
-                if (totalRolls % sampleRate === 0 || totalRolls === 1) {
-                    rollLabels.push(totalRolls);
-                    for (let j = 0; j < 6; j++) {
-                        relativeFreqHistory[j].push(faceCounts[j] / totalRolls);
-                    }
-                    lineChart.data.datasets[6].data.push(THEORETICAL_PROB);
-                }
-            }
-            
-            updateUI(lastFace);
-        }
+let db = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+}catch(e){
+  console.error('Firebase 초기화 실패', e);
+  alert('Firebase 연결에 실패했어요. 인터넷 연결을 확인하세요.');
+}
 
-        function updateUI(lastFace) {
-            // 주사위 시각 효과
-            if (lastFace) {
-                diceFaceEl.textContent = lastFace;
-                diceFaceEl.classList.add('scale-90');
-                setTimeout(() => diceFaceEl.classList.remove('scale-90'), 100);
-            }
+let data = { schools:{} };        // 실시간 미러 (Firebase가 채워줌)
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 't'+Date.now()+Math.random().toString(16).slice(2));
 
-            // 통계 텍스트 업데이트
-            totalRollsEl.textContent = totalRolls.toLocaleString();
-            for (let i = 1; i <= 6; i++) {
-                const count = faceCounts[i - 1];
-                const ratio = totalRolls > 0 ? (count / totalRolls * 100).toFixed(1) : "0.0";
-                document.getElementById(`count-${i}`).textContent = count.toLocaleString();
-                document.getElementById(`ratio-${i}`).textContent = `${ratio}%`;
-            }
+const APP_ROOT = 'dice_prob';               // 이 앱 전용 최상위 경로 (같은 프로젝트의 다른 앱과 데이터 분리)
+const R = p => db.ref(APP_ROOT + '/' + p);  // schools 이하 모든 경로에 사용
 
-            // 차트 업데이트
-            barChart.data.datasets[0].data = [...faceCounts];
-            barChart.update('none'); // 애니메이션 없이 빠르게 업데이트
-            lineChart.update('none');
-        }
+/* 이름 기준 자연 오름차순 정렬 (1,2,…,9,10 순서로 정렬) */
+function sortedEntries(obj){
+  return Object.entries(obj||{}).sort((a,b)=>
+    String((a[1]&&a[1].name)||'').localeCompare(String((b[1]&&b[1].name)||''), 'ko', {numeric:true, sensitivity:'base'})
+  );
+}
+function sortedValues(obj){ return sortedEntries(obj).map(e=>e[1]); }
 
-        function reset() {
-            totalRolls = 0;
-            faceCounts = [0, 0, 0, 0, 0, 0];
-            relativeFreqHistory.forEach(arr => arr.length = 0);
-            rollLabels.length = 0;
-            lineChart.data.datasets[6].data = [];
-            diceFaceEl.textContent = '?';
-            updateUI();
-        }
+/* 쓰기 전 연결 확인 + 실패 시 화면에 크게 표시 (태블릿에서도 보이게 alert 사용) */
+function needDB(){
+  if(!db){
+    alert('데이터베이스에 연결되지 않았어요.\n\n· 인터넷 연결을 확인하세요\n· 페이지를 강력 새로고침 하세요');
+    return false;
+  }
+  return true;
+}
+function writeErr(e){
+  console.error(e);
+  const code = (e && e.code) ? e.code : '';
+  const msg  = (e && e.message) ? e.message : String(e);
+  let hint = '';
+  if((code+msg).toUpperCase().includes('PERMISSION')){
+    hint = '\n\n▶ 원인: Realtime Database 규칙이 잠겨 있어요.\n규칙(Rules)에서 .read / .write 를 true 로 바꾸고 게시하세요.';
+  }
+  alert('저장 실패!\n' + (code ? '['+code+']\n' : '') + msg + hint);
+}
 
-        // --- 이벤트 리스너 ---
-        document.getElementById('roll-1').addEventListener('click', () => roll(1));
-        document.getElementById('roll-10').addEventListener('click', () => roll(10));
-        document.getElementById('roll-100').addEventListener('click', () => roll(100));
-        document.getElementById('roll-1000').addEventListener('click', () => roll(1000));
-        document.getElementById('reset-btn').addEventListener('click', reset);
+if(db){
+  // 실시간 구독: 데이터가 바뀌면 미러 갱신 + 지금 보고 있는 화면만 다시 그림
+  R('schools').on('value',
+    snap => { data.schools = snap.val() || {}; onDataChanged(); },
+    err  => toast('읽기 실패: ' + err.message)
+  );
+  // 연결 상태 표시
+  db.ref('.info/connected').on('value', snap => setConn(snap.val() === true));
+}
 
-        // 초기화
-        updateUI();
+function setConn(ok){
+  const el = document.getElementById('conn');
+  if(!el) return;
+  el.textContent = ok ? '● 온라인' : '○ 연결 중…';
+  el.className = 'conn ' + (ok ? 'on' : 'off');
+}
 
-    </script>
+/* 데이터가 실시간으로 바뀔 때, 현재 화면만 새로고침 (입력 중인 화면은 건드리지 않음) */
+function onDataChanged(){
+  const active = document.querySelector('.screen.active')?.id;
+  if(active === 's-select'){ refreshStudentSelect(); }
+  else if(active === 'admin'){
+    const manageVisible = document.getElementById('admin-manage').style.display !== 'none';
+    if(manageVisible) renderTree(); else refreshResult();
+  }
+}
+
+/* ===== 주사위 눈 도트 패턴 (1~6) ===== */
+const PIPS = {
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+function faceHTML(n, cls=''){
+  let s = `<span class="dice-face ${cls}">`;
+  for(let i=0;i<9;i++) s += `<i class="${PIPS[n].includes(i)?'on':''}"></i>`;
+  return s+'</span>';
+}
+function barFaceHTML(n){
+  let s = `<span class="bar-face">`;
+  for(let i=0;i<9;i++) s += `<i class="${PIPS[n].includes(i)?'on':''}"></i>`;
+  return s+'</span>';
+}
+
+/* ===== 화면 전환 ===== */
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+/* =========================================================================
+   학생 흐름
+========================================================================= */
+let cur = { schoolId:'', classId:'', groupId:'' };
+
+function fillOptions(sel, entries, placeholder){
+  sel.innerHTML = `<option value="">${placeholder}</option>` +
+    entries.map(([id,o])=>`<option value="${id}">${o.name}</option>`).join('');
+}
+
+function initStudentSelect(){
+  const sel = document.getElementById('sel-school');
+  fillOptions(sel, sortedEntries(data.schools), '— 학교 선택 —');
+  document.getElementById('sel-class').innerHTML='<option value="">— 학급 선택 —</option>';
+  document.getElementById('sel-class').disabled=true;
+  document.getElementById('sel-group').innerHTML='<option value="">— 모둠 선택 —</option>';
+  document.getElementById('sel-group').disabled=true;
+  document.getElementById('enter-btn').disabled=true;
+}
+/* 실시간 갱신 시 학생이 고른 학교/학급/모둠은 유지하며 목록만 새로고침 */
+function refreshStudentSelect(){
+  const sSel=document.getElementById('sel-school');
+  const cSel=document.getElementById('sel-class');
+  const gSel=document.getElementById('sel-group');
+  const sv=sSel.value, cv=cSel.value, gv=gSel.value;
+  fillOptions(sSel, sortedEntries(data.schools), '— 학교 선택 —');
+  if(sv && data.schools[sv]){
+    sSel.value=sv; onSchoolPick();
+    const cls=data.schools[sv].classes||{};
+    if(cv && cls[cv]){
+      cSel.value=cv; onClassPick();
+      const grp=cls[cv].groups||{};
+      if(gv && grp[gv]){ gSel.value=gv; onGroupPick(); }
+    }
+  }
+}
+function onSchoolPick(){
+  const sid=document.getElementById('sel-school').value;
+  cur.schoolId=sid; cur.classId=''; cur.groupId='';
+  const cSel=document.getElementById('sel-class');
+  const gSel=document.getElementById('sel-group');
+  gSel.innerHTML='<option value="">— 모둠 선택 —</option>'; gSel.disabled=true;
+  if(!sid){ cSel.innerHTML='<option value="">— 학급 선택 —</option>'; cSel.disabled=true; document.getElementById('enter-btn').disabled=true; return; }
+  fillOptions(cSel, sortedEntries(data.schools[sid].classes), '— 학급 선택 —');
+  cSel.disabled=false;
+  document.getElementById('enter-btn').disabled=true;
+}
+function onClassPick(){
+  const cid=document.getElementById('sel-class').value;
+  cur.classId=cid; cur.groupId='';
+  const gSel=document.getElementById('sel-group');
+  if(!cid){ gSel.innerHTML='<option value="">— 모둠 선택 —</option>'; gSel.disabled=true; document.getElementById('enter-btn').disabled=true; return; }
+  fillOptions(gSel, sortedEntries(data.schools[cur.schoolId].classes[cid].groups), '— 모둠 선택 —');
+  gSel.disabled=false;
+  document.getElementById('enter-btn').disabled=true;
+}
+function onGroupPick(){
+  cur.groupId=document.getElementById('sel-group').value;
+  document.getElementById('enter-btn').disabled = !cur.groupId;
+}
+
+let draft = { square:[0,0,0,0,0,0], rect:[0,0,0,0,0,0] };
+
+function enterGroup(){
+  const g = data.schools[cur.schoolId].classes[cur.classId].groups[cur.groupId];
+  draft = { square:[...(g.square||[0,0,0,0,0,0])], rect:[...(g.rect||[0,0,0,0,0,0])] };
+  buildDiceInputs('grid-square','square','sq');
+  buildDiceInputs('grid-rect','rect','rc');
+  const path = groupPath(cur);
+  document.getElementById('crumb-sq').innerHTML = path;
+  document.getElementById('crumb-rc').innerHTML = path;
+  updateSum('square'); updateSum('rect');
+  go('s-square');
+}
+function groupPath(c){
+  const s=data.schools[c.schoolId];
+  const cl=s.classes[c.classId];
+  const g=cl.groups[c.groupId];
+  return `<b>${s.name}</b> · ${cl.name} · <b>${g.name}</b>`;
+}
+
+function buildDiceInputs(gridId, key, cls){
+  const grid=document.getElementById(gridId);
+  grid.innerHTML='';
+  for(let n=1;n<=6;n++){
+    const cell=document.createElement('div');
+    cell.className='dice-cell '+cls;
+    cell.innerHTML =
+      faceHTML(n, cls==='rc'?'wide':'') +
+      `<div class="count">
+         <label>${n}의 눈</label>
+         <input type="number" min="0" inputmode="numeric" value="${draft[key][n-1]||0}"
+                onfocus="this.select()" oninput="onCountInput('${key}',${n-1},this)">
+       </div>`;
+    grid.appendChild(cell);
+  }
+}
+function onCountInput(key, idx, el){
+  let v=parseInt(el.value,10); if(isNaN(v)||v<0){v=0;}
+  draft[key][idx]=v;
+  updateSum(key);
+}
+function updateSum(key){
+  const sum=draft[key].reduce((a,b)=>a+b,0);
+  document.getElementById(key==='square'?'sum-square':'sum-rect').textContent=sum;
+}
+
+function submitSquare(){
+  if(!needDB()) return;
+  // 정육면체 결과를 그 자리에서 바로 저장
+  R(`schools/${cur.schoolId}/classes/${cur.classId}/groups/${cur.groupId}`)
+    .update({ square:[...draft.square] })
+    .then(()=>{ toast('정육면체 주사위 제출 완료 ✓'); go('s-rect'); })
+    .catch(writeErr);
+}
+
+function submitRect(){
+  if(!needDB()) return;
+  // 직육면체 결과 저장 + 입력 완료 표시
+  R(`schools/${cur.schoolId}/classes/${cur.classId}/groups/${cur.groupId}`)
+    .update({ rect:[...draft.rect], done:true })
+    .then(()=>{
+      const tot = draft.square.reduce((a,b)=>a+b,0)+draft.rect.reduce((a,b)=>a+b,0);
+      document.getElementById('done-msg').innerHTML =
+        `${groupPath(cur)}<br>총 <b>${tot}</b>번의 결과가 저장되었어요.`;
+      go('s-done');
+    })
+    .catch(writeErr);
+}
+function editAgain(){ enterGroup(); }
+
+/* =========================================================================
+   관리자
+========================================================================= */
+const ADMIN_PW='3141592';
+function tryLogin(){
+  const pw=document.getElementById('pw').value;
+  if(pw===ADMIN_PW){
+    document.getElementById('pw').value='';
+    document.getElementById('pw-msg').style.display='none';
+    adminTab('manage');
+    go('admin');
+  }else{
+    document.getElementById('pw-msg').style.display='block';
+  }
+}
+function adminTab(which){
+  const manage=which==='manage';
+  document.getElementById('admin-manage').style.display=manage?'block':'none';
+  document.getElementById('admin-result').style.display=manage?'none':'block';
+  document.getElementById('tab-manage').classList.toggle('blue',manage);
+  document.getElementById('tab-result').classList.toggle('blue',!manage);
+  if(manage) renderTree(); else initResult();
+}
+
+/* ---- 관리: 트리 CRUD ---- */
+function addSchool(){
+  const inp=document.getElementById('new-school'); const name=inp.value.trim();
+  if(!name){ toast('학교 이름을 입력하세요'); return; }
+  if(!needDB()) return;
+  R('schools/'+uid()).set({ name }).then(()=>{ inp.value=''; }).catch(writeErr);
+}
+function addClass(sid, name){
+  if(!name.trim()){ toast('학급 이름을 입력하세요'); return; }
+  if(!needDB()) return;
+  R(`schools/${sid}/classes/${uid()}`).set({ name:name.trim() }).catch(writeErr);
+}
+function addGroup(sid, cid, name){
+  if(!name.trim()){ toast('모둠 이름을 입력하세요'); return; }
+  if(!needDB()) return;
+  R(`schools/${sid}/classes/${cid}/groups/${uid()}`)
+    .set({ name:name.trim(), square:[0,0,0,0,0,0], rect:[0,0,0,0,0,0], done:false })
+    .catch(writeErr);
+}
+function delSchool(sid){ if(confirm('이 학교를 삭제할까요? (학급·모둠·기록 모두 삭제)')) R('schools/'+sid).remove().catch(writeErr); }
+function delClass(sid,cid){ if(confirm('이 학급을 삭제할까요?')) R(`schools/${sid}/classes/${cid}`).remove().catch(writeErr); }
+function delGroup(sid,cid,gid){ if(confirm('이 모둠을 삭제할까요?')) R(`schools/${sid}/classes/${cid}/groups/${gid}`).remove().catch(writeErr); }
+
+function renderTree(){
+  const box=document.getElementById('tree');
+  const schools=sortedEntries(data.schools);
+  if(!schools.length){ box.innerHTML='<p class="empty">아직 학교가 없습니다. 위에서 학교를 추가하세요.</p>'; return; }
+  box.innerHTML = schools.map(([sid,s])=>{
+    const classes=sortedEntries(s.classes);
+    const clsHTML = classes.length ? classes.map(([cid,c])=>{
+      const groups=sortedEntries(c.groups);
+      const grpHTML = groups.length ? groups.map(([gid,g])=>`
+        <div class="tree-item" style="background:#fff;">
+          <div class="head">
+            <span class="name">🧩 ${g.name} <span class="status ${g.done?'done':''}">${g.done?'입력 완료':'미입력'}</span></span>
+            <button class="btn sm danger" onclick="delGroup('${sid}','${cid}','${gid}')">삭제</button>
+          </div>
+        </div>`).join('') : '<p class="empty">모둠 없음</p>';
+      return `
+        <div class="tree-item">
+          <div class="head">
+            <span class="name">🏫 ${c.name}</span>
+            <button class="btn sm danger" onclick="delClass('${sid}','${cid}')">삭제</button>
+          </div>
+          <div class="tree-children">
+            ${grpHTML}
+            <div class="add-inline">
+              <input type="text" placeholder="모둠 이름 (예: 1모둠)" id="ng-${cid}"
+                     onkeydown="if(event.key==='Enter')addGroup('${sid}','${cid}',this.value)">
+              <button class="btn sm blue" onclick="addGroup('${sid}','${cid}',document.getElementById('ng-${cid}').value)">＋ 모둠</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('') : '<p class="empty">학급 없음</p>';
+    return `
+      <div class="tree-item">
+        <div class="head">
+          <span class="name">🏢 ${s.name}</span>
+          <button class="btn sm danger" onclick="delSchool('${sid}')">삭제</button>
+        </div>
+        <div class="tree-children">
+          ${clsHTML}
+          <div class="add-inline">
+            <input type="text" placeholder="학급 이름 (예: 1학년 3반)" id="nc-${sid}"
+                   onkeydown="if(event.key==='Enter')addClass('${sid}',this.value)">
+            <button class="btn sm blue" onclick="addClass('${sid}',document.getElementById('nc-${sid}').value)">＋ 학급</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ---- 결과 ---- */
+function initResult(){
+  const sel=document.getElementById('res-school');
+  fillOptions(sel, sortedEntries(data.schools), '— 학교 선택 —');
+  document.getElementById('res-scope').innerHTML='<option value="">— 학급 선택 —</option>';
+  document.getElementById('res-scope').disabled=true;
+  document.getElementById('result-view').innerHTML='';
+}
+/* 실시간 갱신: 선택한 학교/학급은 유지하며 표만 다시 계산 (수업 중 실시간 관전용) */
+function refreshResult(){
+  const sSel=document.getElementById('res-school');
+  const cSel=document.getElementById('res-scope');   // 학급 선택
+  const sv=sSel.value, cv=cSel.value;
+  fillOptions(sSel, sortedEntries(data.schools), '— 학교 선택 —');
+  if(sv && data.schools[sv]){
+    sSel.value=sv;
+    const classes=sortedEntries(data.schools[sv].classes);
+    cSel.innerHTML='<option value="">— 학급 선택 —</option>' +
+      classes.map(([cid,c])=>`<option value="${cid}">${c.name}</option>`).join('');
+    cSel.disabled=false;
+    if(cv && data.schools[sv].classes && data.schools[sv].classes[cv]) cSel.value=cv;
+    renderResult();
+  }else{
+    cSel.innerHTML='<option value="">— 학급 선택 —</option>';
+    cSel.disabled=true;
+    document.getElementById('result-view').innerHTML='';
+  }
+}
+document.getElementById('res-school').addEventListener('change', function(){
+  const sid=this.value; const cSel=document.getElementById('res-scope');
+  if(!sid){ cSel.innerHTML='<option value="">— 학급 선택 —</option>'; cSel.disabled=true; document.getElementById('result-view').innerHTML=''; return; }
+  const classes=sortedEntries(data.schools[sid].classes);
+  cSel.innerHTML='<option value="">— 학급 선택 —</option>' +
+    classes.map(([cid,c])=>`<option value="${cid}">${c.name}</option>`).join('');
+  cSel.disabled=false;
+  document.getElementById('result-view').innerHTML='';   // 학급 선택 전까지는 비움
+});
+
+/* 카운트 배열들을 눈별로 합산 */
+function sumArrays(list){
+  const r=[0,0,0,0,0,0];
+  list.forEach(a=>{ for(let i=0;i<6;i++) r[i]+=(a?.[i]||0); });
+  return r;
+}
+const rowTotal = a => a.reduce((x,y)=>x+y,0);
+
+/* 한 주사위(정육면체 or 직육면체)에 대한 표 HTML */
+function diceTable(cls, title, groupRows, classTotal, schoolTotal){
+  // groupRows: [{name, arr}]
+  // 각 셀: 횟수 + 그 줄 총합 대비 확률(%)
+  const dataRow = (label, arr, klass='') => {
+    const t = rowTotal(arr);
+    const cells = arr.map(v =>
+      `<td>${v}<span class="pct">${t ? (v/t*100).toFixed(1)+'%' : '-'}</span></td>`
+    ).join('');
+    return `<tr class="${klass}"><th scope="row">${label}</th>${cells}` +
+           `<td class="sum">${t}<span class="pct">${t?'100%':'-'}</span></td></tr>`;
+  };
+
+  let body = groupRows.map(g => dataRow(g.name, g.arr)).join('');
+  if(!groupRows.length) body = `<tr><td colspan="8" class="empty-row">이 학급에 모둠이 없습니다</td></tr>`;
+  body += dataRow('학급 전체', classTotal, 'tot');
+  body += dataRow('학교 전체', schoolTotal, 'tot school');
+
+  const tot = rowTotal(schoolTotal);
+  return `
+    <div class="card">
+      <div class="result-head">
+        <h3><span class="tag ${cls}">${cls==='sq'?'정육면체':'직육면체'}</span> ${title} 주사위</h3>
+        <span class="n-roll">총 ${tot}회 굴림</span>
+      </div>
+      <div class="twrap">
+        <table class="rtable ${cls}">
+          <thead>
+            <tr><th>눈</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>합계</th></tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+      <p class="ref-caption">각 칸 아래 %가 그 줄의 <b>통계적 확률</b>이에요. <b>학교 전체</b>로 갈수록 이론값 <b>1/6 ≈ 16.7%</b>에 가까워집니다.</p>
+    </div>`;
+}
+
+function renderResult(){
+  const sid=document.getElementById('res-school').value;
+  const cid=document.getElementById('res-scope').value;   // 이제 학급 id
+  const view=document.getElementById('result-view');
+  if(!sid || !cid || !data.schools[sid] || !data.schools[sid].classes || !data.schools[sid].classes[cid]){
+    view.innerHTML=''; return;
+  }
+  const school = data.schools[sid];
+  const klass  = school.classes[cid];
+  const groups = sortedValues(klass.groups);
+
+  // 모둠별 행 (선생님이 만든 모둠 수만큼)
+  const sqGroupRows = groups.map(g => ({ name:g.name, arr:(g.square||[0,0,0,0,0,0]) }));
+  const rcGroupRows = groups.map(g => ({ name:g.name, arr:(g.rect  ||[0,0,0,0,0,0]) }));
+
+  // 학급 전체 = 이 학급 모둠 합
+  const sqClass = sumArrays(groups.map(g=>g.square));
+  const rcClass = sumArrays(groups.map(g=>g.rect));
+
+  // 학교 전체 = 학교 안 모든 학급의 모든 모둠 합
+  const allGroups=[];
+  Object.values(school.classes||{}).forEach(c=>Object.values(c.groups||{}).forEach(g=>allGroups.push(g)));
+  const sqSchool = sumArrays(allGroups.map(g=>g.square));
+  const rcSchool = sumArrays(allGroups.map(g=>g.rect));
+
+  const doneCount = groups.filter(g=>g.done).length;
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="result-head">
+        <h3>📊 ${school.name} · ${klass.name}</h3>
+        <span class="n-roll">모둠 ${groups.length}개 · ${doneCount}개 입력 완료</span>
+      </div>
+    </div>
+    ${diceTable('sq','정육면체', sqGroupRows, sqClass, sqSchool)}
+    ${diceTable('rc','직육면체', rcGroupRows, rcClass, rcSchool)}
+  `;
+}
+
+/* ===== 학생 입장 화면 진입 시 목록 갱신 ===== */
+document.querySelectorAll('.role')[0].addEventListener('click', initStudentSelect);
+
+/* 최초 로드 */
+initStudentSelect();
+</script>
 </body>
 </html>
