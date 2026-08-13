@@ -14,9 +14,9 @@
     --paper:#FBFCFE;        /* 종이 */
     --grid:#DCE6F2;         /* 모눈선 */
     --line:#c3d3e6;         /* 테두리 */
-    --square:#2D7DD2;       /* 정사각형 주사위 = 파랑 */
+    --square:#2D7DD2;       /* 정육면체 주사위 = 파랑 */
     --square-soft:#E4F0FB;
-    --rect:#F26419;         /* 직사각형 주사위 = 주황 */
+    --rect:#F26419;         /* 직육면체 주사위 = 주황 */
     --rect-soft:#FDEBDF;
     --gold:#F6C700;         /* 이론값 1/6 강조 */
     --good:#1EA672;
@@ -105,7 +105,7 @@
   .dice-face{flex:0 0 auto; width:64px; height:64px; background:#fff; border:3px solid var(--ink);
     border-radius:12px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
     padding:8px; gap:2px;}
-  .dice-face.wide{width:84px;}   /* 직사각형 느낌 */
+  .dice-face.wide{width:84px;}   /* 직육면체(가로로 긴) 느낌 */
   .dice-face i{border-radius:50%; background:transparent; place-self:center; width:11px; height:11px;}
   .dice-face i.on{background:var(--ink);}
   .dice-cell .count{flex:1;}
@@ -234,12 +234,12 @@
     </div>
   </section>
 
-  <!-- ============ 학생 2: 정사각형 주사위 ============ -->
+  <!-- ============ 학생 2: 정육면체 주사위 ============ -->
   <section id="s-square" class="screen">
     <button class="back" onclick="go('s-select')">← 모둠 다시 선택</button>
     <div class="card">
       <div class="breadcrumb" id="crumb-sq"></div>
-      <h2><span class="tag sq">1단계</span> 정사각형 주사위</h2>
+      <h2><span class="tag sq">1단계</span> 정육면체 주사위</h2>
       <p class="hint">정육면체 주사위입니다. 1부터 6까지 <b>몇 번</b> 나왔는지 세어서 입력하세요.</p>
       <div class="dice-grid" id="grid-square"></div>
       <p class="totals"><span class="chip">합계 <b id="sum-square">0</b> 번</span></p>
@@ -247,12 +247,12 @@
     </div>
   </section>
 
-  <!-- ============ 학생 3: 직사각형 주사위 ============ -->
+  <!-- ============ 학생 3: 직육면체 주사위 ============ -->
   <section id="s-rect" class="screen">
-    <button class="back" onclick="go('s-square')">← 정사각형 주사위</button>
+    <button class="back" onclick="go('s-square')">← 정육면체 주사위</button>
     <div class="card">
       <div class="breadcrumb" id="crumb-rc"></div>
-      <h2><span class="tag rc">2단계</span> 직사각형 주사위</h2>
+      <h2><span class="tag rc">2단계</span> 직육면체 주사위</h2>
       <p class="hint">직육면체 주사위입니다. 1부터 6까지 <b>몇 번</b> 나왔는지 세어서 입력하세요.</p>
       <div class="dice-grid" id="grid-rect"></div>
       <p class="totals"><span class="chip">합계 <b id="sum-rect">0</b> 번</span></p>
